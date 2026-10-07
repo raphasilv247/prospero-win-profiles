@@ -34,10 +34,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -yq \
-            python3-pyyaml \
+            python3-yaml \
             wine \
-            wine32 \
-            wine64 \
             p7zip-full \
             unzip \
             curl
@@ -48,38 +46,49 @@ jobs:
           echo "📥 Baixando SART do Google Drive..."
           curl -L -o SART-game.zip \
             "https://drive.google.com/uc?export=download&id=1pwsj3spbLE3ySZuvFaAOV9kcpNgpF2Qi"
+
           if [ ! -f SART-game.zip ]; then
             echo "❌ Erro: Arquivo não baixado!"
             exit 1
           fi
+
           SIZE=$(du -h SART-game.zip | cut -f1)
           echo "✅ Download concluído: $SIZE"
+          ls -lh SART-game.zip
 
       - name: "Extract SART game"
         run: |
           cd /tmp
           echo "📦 Extraindo..."
           unzip -q SART-game.zip -d SART-extract
+
+          # Find SART folder
           SART_PATH=$(find SART-extract -type d -name "SART" | head -1)
           if [ -z "$SART_PATH" ]; then
             SART_PATH=$(dirname $(find SART-extract -name "ASN_App.exe" | head -1))
           fi
+
           if [ ! -f "$SART_PATH/ASN_App.exe" ]; then
-            echo "❌ Erro: ASN_App.exe não encontrado!"
+            echo "❌ Erro: ASN_App.exe não encontrado em $SART_PATH"
+            find SART-extract -name "ASN_App.exe" -type f
             exit 1
           fi
-          echo "✅ SART encontrado"
+
+          echo "✅ SART encontrado: $SART_PATH"
           echo "SART_PATH=$SART_PATH" >> $GITHUB_ENV
+          ls -lh "$SART_PATH/"
 
       - name: "Build SART prefix with pw_install.py"
         run: |
           echo "🔨 Compilando prefix..."
           mkdir -p ~/prospero-library
+
           python3 prospero-win/tools/pw_install.py \
             prospero-win-profiles/recipes/sart.yml \
             --library ~/prospero-library \
             --wine /usr/bin/wine \
             --file game="$SART_PATH"
+
           echo "✅ Prefix compilado!"
         env:
           SART_PATH: ${{ env.SART_PATH }}
@@ -93,10 +102,15 @@ jobs:
       - name: "Package prefix"
         run: |
           cd ~/prospero-library
+
           echo "📦 Compactando prefix..."
-          tar -czf /tmp/sart-prefix.tar.gz prefixes/sart profiles/sart.profile
+          tar -czf /tmp/sart-prefix.tar.gz \
+            prefixes/sart \
+            profiles/sart.profile
+
           SIZE=$(du -h /tmp/sart-prefix.tar.gz | cut -f1)
           echo "✅ Compactado: $SIZE"
+          ls -lh /tmp/sart-prefix.tar.gz
 
       - name: "Upload prefix as artifact"
         uses: actions/upload-artifact@v4
@@ -113,7 +127,28 @@ jobs:
           tag_name: "sart-prefix-build-${{ github.run_number }}"
           body: |
             # ✅ SART Prefix Build #${{ github.run_number }}
+
             Prefix successfully built for PS5!
+
+            ## How to Use
+
+            ### 1. Download and Extract
+            ```bash
+            tar -xzf sart-prefix.tar.gz -C ~/prospero-library
+            ```
+
+            ### 2. Push to PS5
+            ```bash
+            cd prospero-win
+            python3 tools/pw_prefix.py push sart \
+              --library ~/prospero-library \
+              --host <PS5_IP> \
+              --cpu-dll <wine-build>/dlls/wowprospero/x86_64-windows/wowprospero.dll
+            ```
+
+            ### 3. Restart prospero-win on PS5
+
+            You should now see **SART** in the launcher! 🎮
           draft: false
           prerelease: false
         env:
