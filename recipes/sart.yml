@@ -1,0 +1,58 @@
+# Sonic & All-Stars Racing Transformed (Steam Edition)
+# Para Prospero Win no PS5
+#
+# Recipe que describe como instalar SART usando Wine.
+# O jogo é copiado de uma pasta Steam existente para dentro do prefix.
+#
+# Como usar:
+# python3 tools/pw_install.py recipes/sart.yml \
+#     --library ~/prospero-library \
+#     --wine <caminho-wine> \
+#     --file game=/caminho/para/pasta/SART
+
+name: "Sonic & All-Stars Racing Transformed"
+game_slug: sart
+version: "Steam Edition (Prospero Win)"
+slug: sart-prospero-win
+runner: wine
+
+prospero:
+  name: "SART"
+  graphics: dxvk
+  display: {desktop: 1920x1080, scaling: fit}
+  input: {preset: gamepad}
+
+script:
+  game:
+    exe: "drive_c/Games/SART/ASN_App.exe"
+    prefix: "$GAMEDIR"
+    working_dir: "drive_c/Games/SART"
+
+  files:
+    - game: "N/A:Selecione a pasta raiz do SART (que contém ASN_App.exe e pasta Data)"
+
+  steps:
+    # Criar o prefix Wine vazio
+    - create_prefix:
+        path: "$GAMEDIR"
+
+    # Copiar o jogo do arquivo fornecido
+    - copy:
+        src: "$game"
+        dst: "$GAMEDIR/drive_c/Games/SART"
+
+    # Instalar LAV Filters para cinemáticas (DirectShow)
+    - winetricks:
+        prefix: "$GAMEDIR"
+        task: "lavfilters"
+
+    # Instalar DXVK (Direct3D 9 -> Vulkan)
+    - wine:
+        prefix: "$GAMEDIR"
+        dxvk: true
+        dxvk_version: "2.6.2"
+
+    # (OPCIONAL) Se o jogo precisar de .NET Framework
+    # - winetricks:
+    #     prefix: "$GAMEDIR"
+    #     task: "dotnet481"
